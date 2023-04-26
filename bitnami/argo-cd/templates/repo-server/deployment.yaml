@@ -68,6 +68,18 @@ spec:
       securityContext: {{- omit .Values.repoServer.podSecurityContext "enabled" | toYaml | nindent 8 }}
       {{- end }}
       initContainers:
+        {{- if .Values.repoServer.sidecars }}
+        - name: copyutil
+          image: quay.io/argoproj/argocd:v{{ .Chart.AppVersion }}
+          command:
+          - cp
+          - -n
+          - /usr/local/bin/argocd
+          - /var/run/argocd/argocd-cmp-server
+          volumeMounts:
+          - mountPath: /var/run/argocd
+            name: var-files
+        {{- end }}
         {{- if .Values.volumePermissions.enabled }}
         - name: volume-permissions
           image: {{ include "argocd.volumePermissions.image" . }}
@@ -249,6 +261,10 @@ spec:
               name: gpg-keyring
             - mountPath: /tmp
               name: tmp-dir
+            {{- if .Values.repoServer.sidecars }}
+            - mountPath: /home/argocd/cmp-server/plugins
+              name: plugins
+            {{- end }}
           {{- if .Values.repoServer.extraVolumeMounts }}
           {{- include "common.tplvalues.render" (dict "value" .Values.repoServer.extraVolumeMounts "context" $) | nindent 12 }}
           {{- end }}
@@ -279,6 +295,12 @@ spec:
           name: tmp-dir
         - emptyDir: {}
           name: gpg-keyring
+        {{- if .Values.repoServer.sidecars }}
+        - emptyDir: {}
+          name: plugins
+        - emptyDir: {}
+          name: var-files
+        {{- end }}
         {{- if .Values.repoServer.extraVolumes }}
         {{- include "common.tplvalues.render" (dict "value" .Values.repoServer.extraVolumes "context" $) | nindent 8 }}
         {{- end }}
